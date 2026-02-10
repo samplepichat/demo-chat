@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reconnecting...</title>
+    <style>
+        body {
+            background: #111;
+            color: #0f0;
+            font-family: monospace;
+            text-align: center;
+            padding-top: 10%;
+        }
+
+        .box {
+            border: 1px solid #0f0;
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 20px;
+            border-radius: 5px;
+        }
+
+        .blink {
+            animation: blinker 1s linear infinite;
+            color: red;
+        }
+
+        @keyframes blinker {
+            50% {
+                opacity: 0;
+            }
+        }
+
+        button {
+            background: #0f0;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 1.2em;
+            margin-top: 15px;
+        }
+
+        .url-display {
+            color: #fff;
+            background: #333;
+            padding: 5px;
+            margin: 10px 0;
+            word-break: break-all;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="box">
+        <h1>NO SIGNAL</h1>
+        <div id="status" class="blink">SCANNING SATELLITE BEACON...</div>
+
+        <div id="found-section" style="display:none;">
+            <hr style="border-color: #333; margin: 20px 0;">
+            <p>New Coordinates Acquired:</p>
+            <div id="target-url" class="url-display">...</div>
+            <p>Jumping in <span id="timer">5</span> seconds...</p>
+            <button onclick="stopJump()">ABORT JUMP</button>
+            <button onclick="jumpNow()">JUMP NOW</button>
+        </div>
+
+        <p id="log" style="color: #666; font-size: 0.8em; margin-top: 20px;"></p>
+    </div>
+
+    <script>
+        const GITHUB_USER = "martenwallewein";
+        // 2. Enter the Gist ID
+        const GIST_ID = "ac029299da0994998f096082f17720da";
+        // 3. The filename inside the Gist
+        const FILE_NAME = "status.json";
+        // ---------------------
+
+        let jumpTimer = null;
+
+        async function checkBeacon() {
+            const log = document.getElementById('log');
+            const rawUrl = `https://gist.githubusercontent.com/${GITHUB_USER}/${GIST_ID}/raw/${FILE_NAME}`;
+            const cacheBuster = "?t=" + new Date().getTime();
+
+            try {
+                log.innerText = "Pinging Beacon...";
+                const res = await fetch(rawUrl + cacheBuster);
+                if (!res.ok) throw new Error("Gist Unreachable");
+
+                const data = await res.json();
+                const newUrl = data.url;
+
+                // LOGIC: Only trigger if the URL is different AND valid
+                if (newUrl && !newUrl.includes(window.location.hostname) && newUrl.includes('trycloudflare.com')) {
+
+                    // Stop scanning
+                    log.innerText = "Target Confirmed.";
+                    showFound(newUrl);
+                    return; // Stop the interval loop
+                } else {
+                    log.innerText = "Beacon points to current (dead) node. Waiting for update...";
+                }
+            } catch (e) {
+                console.error(e);
+                log.innerText = "Signal Weak. Retrying...";
+            }
+
+            // If no new URL found, check again in 5s
+            setTimeout(checkBeacon, 5000);
+        }
+
+        function showFound(url) {
+            document.getElementById('status').className = ""; // Stop blinking
+            document.getElementById('status').innerText = "CONNECTION ESTABLISHED";
+            document.getElementById('found-section').style.display = "block";
+            document.getElementById('target-url').innerText = url;
+
+            let count = 5;
+            const timerSpan = document.getElementById('timer');
+
+            jumpTimer = setInterval(() => {
+                count--;
+                timerSpan.innerText = count;
+                if (count <= 0) jumpNow(url);
+            }, 1000);
+        }
+
+        function jumpNow(url) {
+            const target = url || document.getElementById('target-url').innerText;
+            window.location.href = target;
+        }
+
+        function stopJump() {
+            clearInterval(jumpTimer);
+            document.getElementById('timer').innerText = "PAUSED";
+            document.getElementById('status').innerText = "JUMP ABORTED";
+            // Resume scanning? Optional.
+        }
+
+        // Start
+        checkBeacon();
+    </script>
+</body>
+
+</html>

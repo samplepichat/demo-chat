@@ -1,1 +1,1 @@
-# demo-chat
+# sample-chat-site

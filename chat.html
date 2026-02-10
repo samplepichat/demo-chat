@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PiChat - Encrypted Chat</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/argon2-browser@1.18.0/dist/argon2-bundled.min.js"></script>
+</head>
+
+<body>
+    <!-- Load noble-curves before other scripts -->
+    <script type="module">
+        import { p256 } from 'https://cdn.jsdelivr.net/npm/@noble/curves@1.3.0/p256/+esm';
+        window.p256 = p256;
+        console.log('Noble-curves p256 loaded:', !!window.p256);
+    </script>
+    <div class="chat-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>PiChat</h2>
+                <div class="user-info">
+                    <span id="current-username"></span>
+                    <button id="logout-btn" class="btn btn-small">Logout</button>
+                </div>
+            </div>
+
+            <div class="key-info">
+                <div class="key-generation">
+                    <span>Key Gen: <strong id="key-gen-number">0</strong></span>
+                    <button id="rotate-key-btn" class="btn btn-small" title="Manually rotate keys">&#128260;</button>
+                </div>
+                <small id="last-rotation"></small>
+            </div>
+
+            <!-- Tab Navigation -->
+            <div class="chat-tabs">
+                <button class="tab-btn active" id="contacts-tab-btn">Contacts</button>
+                <button class="tab-btn" id="groups-tab-btn">Groups</button>
+            </div>
+
+            <!-- Contacts Tab Content -->
+            <div class="tab-content" id="contacts-tab">
+                <div class="user-list">
+                    <h3>Contacts</h3>
+                    <div id="users-list" class="users">
+                        <div class="loading-users">Loading users...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Groups Tab Content -->
+            <div class="tab-content" id="groups-tab" style="display: none;">
+                <div class="groups-header">
+                    <h3>Groups</h3>
+                    <button id="create-group-btn" class="btn btn-small">+ New</button>
+                </div>
+                <div id="groups-list" class="groups">
+                    <div class="no-groups">Loading groups...</div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="chat-main">
+            <!-- Direct Chat Header -->
+            <div class="chat-header" id="direct-chat-header">
+                <div id="chat-recipient-info">
+                    <h3 id="chat-recipient-name">Select a user to start chatting</h3>
+                    <small id="recipient-key-gen"></small>
+                </div>
+            </div>
+
+            <!-- Group Chat Header (hidden by default) -->
+            <div class="chat-header group-chat-header" id="group-chat-header" style="display: none;">
+                <div class="group-info">
+                    <h3 id="group-name"></h3>
+                    <small id="group-member-count"></small>
+                </div>
+                <div class="group-actions">
+                    <button id="manage-members-btn" class="btn btn-small">Members</button>
+                    <button id="leave-group-btn" class="btn btn-small btn-danger">Leave</button>
+                </div>
+            </div>
+
+            <div class="messages-container" id="messages-container">
+                <div class="no-conversation">
+                    Select a contact or group from the sidebar to start an encrypted conversation
+                </div>
+            </div>
+
+            <div class="message-input-container" id="message-input-container" style="display: none;">
+                <form id="send-message-form">
+                    <input type="text" id="message-input" placeholder="Type your message... (encrypted end-to-end)"
+                        autocomplete="off" maxlength="10000">
+                    <button type="submit" class="btn btn-primary" style="width: unset;">Send</button>
+                </form>
+                <small class="encryption-indicator">&#128274; Messages are encrypted end-to-end</small>
+            </div>
+        </main>
+    </div>
+
+    <!-- Status Popup -->
+    <div id="key-derivation-status" class="status-popup" style="display: none;">
+        <div class="status-content">
+            <div class="spinner"></div>
+            <p id="status-message">Deriving encryption keys...</p>
+        </div>
+    </div>
+
+    <!-- Create Group Modal -->
+    <div id="create-group-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Create New Group</h2>
+                <button class="modal-close" onclick="window.groupChat.closeCreateGroupModal()">&times;</button>
+            </div>
+            <form id="create-group-form">
+                <div class="form-group">
+                    <label for="group-name-input">Group Name</label>
+                    <input type="text" id="group-name-input" placeholder="Enter group name" required maxlength="100">
+                </div>
+                <div class="form-group">
+                    <label>Select Members</label>
+                    <div id="member-select-list" class="member-select">
+                        <div class="loading">Loading users...</div>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn" onclick="window.groupChat.closeCreateGroupModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Group</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Manage Members Modal -->
+    <div id="manage-members-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Group Members</h2>
+                <button class="modal-close" onclick="window.groupChat.closeManageMembersModal()">&times;</button>
+            </div>
+            <div class="members-section">
+                <h4>Current Members</h4>
+                <div id="current-members-list" class="members-list">
+                    <div class="loading">Loading members...</div>
+                </div>
+            </div>
+            <div class="members-section add-member-section">
+                <h4>Add Member</h4>
+                <div class="add-member-form">
+                    <select id="add-member-select">
+                        <option value="">Select user...</option>
+                    </select>
+                    <button id="add-member-btn" class="btn btn-small btn-primary">Add</button>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn" onclick="window.groupChat.closeManageMembersModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="js/chat.js"></script>
+</body>
+
+</html>

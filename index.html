@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PiChat - Login</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/argon2-browser@1.18.0/dist/argon2-bundled.min.js"></script>
+</head>
+
+<body>
+    <!-- Load noble-curves before other scripts -->
+    <script type="module">
+        import { p256 } from 'https://cdn.jsdelivr.net/npm/@noble/curves@1.3.0/p256/+esm';
+        window.p256 = p256;
+        console.log('Noble-curves p256 loaded:', !!window.p256);
+    </script>
+    <div class="container">
+        <div class="auth-box">
+            <h1>PiChat</h1>
+            <p class="subtitle">Encrypted P2P Chat with HD Key Generation</p>
+
+            <div id="login-form" class="form-container">
+                <h2>Login</h2>
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="login-username">Username</label>
+                        <input type="text" id="login-username" name="username" required autocomplete="username">
+                    </div>
+                    <div class="form-group">
+                        <label for="login-password">Password</label>
+                        <input type="password" id="login-password" name="password" required
+                            autocomplete="current-password">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Login</button>
+                    <div class="loading" id="login-loading" style="display: none;">
+                        <div class="spinner"></div>
+                        <p>Deriving master seed...</p>
+                    </div>
+                </form>
+                <p class="switch-form">Don't have an account? <a href="#" id="show-register">Register</a></p>
+            </div>
+
+            <div id="register-form" class="form-container" style="display: none;">
+                <h2>Register</h2>
+                <form id="registerForm">
+                    <div class="form-group">
+                        <label for="register-username">Username</label>
+                        <input type="text" id="register-username" name="username" required minlength="3"
+                            autocomplete="username">
+                        <small>Minimum 6 characters</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="register-password">Password</label>
+                        <input type="password" id="register-password" name="password" required minlength="8"
+                            autocomplete="new-password">
+                        <small>Minimum 8 characters - Use a strong password!</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="register-password-confirm">Confirm Password</label>
+                        <input type="password" id="register-password-confirm" name="password-confirm" required
+                            autocomplete="new-password">
+                    </div>
+                    <div class="warning-box">
+                        <strong>⚠️ Security Warning:</strong> Your password is your master key. If compromised, all your
+                        message history can be decrypted. Use a strong, unique password!
+                    </div>
+                    <button type="submit" class="btn btn-primary">Register</button>
+                    <div class="loading" id="register-loading" style="display: none;">
+                        <div class="spinner"></div>
+                        <p>Creating account...</p>
+                    </div>
+                </form>
+                <p class="switch-form">Already have an account? <a href="#" id="show-login">Login</a></p>
+            </div>
+
+            <div id="error-message" class="error-message" style="display: none;"></div>
+            <div id="success-message" class="success-message" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script type="module" src="js/auth.js"></script>
+    <!-- 1. THE SERVICE WORKER REGISTRATION SCRIPT -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('SW Registered!', reg.scope))
+                    .catch(err => console.log('SW Failed:', err));
+            });
+        }
+    </script>
+</body>
+
+</html>
