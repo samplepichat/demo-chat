@@ -2,7 +2,7 @@
 
 let API_BASE = window.location.origin + '/api';
 
-const GITHUB_USER = "martenwallewein";
+const GITHUB_USER = "samplepichat";
 // 2. Enter the Gist ID
 const GIST_ID = "05c3ef8f6e16fe62c3e6ddf18ffda92a";
 // 3. The filename inside the Gist
